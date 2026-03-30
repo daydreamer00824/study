@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/timercout.dir/src/timer.cpp.o CMakeFiles/timercout.dir/src/timermain.cpp.o -o timercout 

@@ -1,0 +1,3 @@
+/home/daydreamer/Desktop/study/cpp/cmake_study/build/CMakeFiles/timercout.dir
+/home/daydreamer/Desktop/study/cpp/cmake_study/build/CMakeFiles/edit_cache.dir
+/home/daydreamer/Desktop/study/cpp/cmake_study/build/CMakeFiles/rebuild_cache.dir
