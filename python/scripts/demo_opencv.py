@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-
+#cv2.imread() 就是把图片文件读进内存，并变成一个 NumPy 数组。
 img = cv2.imread("/home/daydreamer/Desktop/study/python/data/test.png")
 
 print(type(img))
