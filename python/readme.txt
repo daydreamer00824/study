@@ -4,3 +4,4 @@ python study:
 Numpy
 argparse study
 pathlib
+opencv
