@@ -1,0 +1,6 @@
+recursive: true
+extensions:
+  - .jpg
+  - .png
+  - .jpeg
+report_name: report.txt
