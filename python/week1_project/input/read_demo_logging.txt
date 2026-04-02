@@ -1,0 +1,43 @@
+logging.basicConfig
+level=
+format=
+FileHandler
+StreamHandler
+logging.info
+logging.warning
+logging.error
+
+要习惯在这些地方写日志：
+
+程序开始。
+参数解析完成。
+配置读取成功。
+输入目录检查成功。
+开始处理文件。
+某个文件处理失败。
+程序结束。
+
+next level:
+logger = logging.getLogger("my_logger")
+logger.setLevel(logging.DEBUG)
+
+# 创建文件处理器
+file_handler = logging.FileHandler("my_logger.log")
+file_handler.setLevel(logging.DEBUG)
+
+# 创建控制台处理器
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+
+# 设置日志格式
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# 将处理器添加到日志记录器
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+# 记录日志
+logger.debug("这是一条调试信息")
+logger.info("这是一条普通信息")
