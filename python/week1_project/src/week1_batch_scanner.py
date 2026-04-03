@@ -46,10 +46,11 @@ def collect_data(input_dir : Path, extensions):
 def create_report(output_dir : Path, file: list[Path]):
     output_dir.mkdir(parents=True, exist_ok=True)
     output_name = output_dir / "report.txt"
-    lines = [str(file_name) for file_name in file]
-    lines2 = [f"{file_name.name} | {file_name.suffix}" for file_name in file]
-    all_lines = lines + lines2
-    output_name.write_text("\n".join(all_lines), encoding="utf-8")
+    # lines = [str(file_name) for file_name in file]
+    # lines2 = [f"{file_name.name} | {file_name.suffix}" for file_name in file]
+    # all_lines = lines + lines2
+    lines = [f"路径:{file_name} | 文件名:{file_name.name} | 后缀: {file_name.suffix}" for file_name in file]
+    output_name.write_text("\n".join(lines), encoding="utf-8")
     return output_name
 
 def main():
@@ -75,7 +76,13 @@ def main():
         logging.error(f"加载配置失败: {e}")
         return
     
-    extensions = config["extensions"]
+    # extensions = config["extensions"]
+    extensions = set(ext.lower() for ext in config.get("extensions", [])) 
+    #从字典 config 里取出键 "extensions" 对应的值。如果有，就拿出来。如果没有，就返回默认值 []，也就是空列表。
+    #1.从配置里拿 extensions
+    #2.如果没有，就用空列表
+    #3.把里面每个后缀转成小写
+    #4.再放进集合里
 
     files = collect_data(input_dir, extensions)
     logging.info(f"共找到 {len(files)} 个符合条件的文件")
