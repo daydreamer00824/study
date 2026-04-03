@@ -1,0 +1,15 @@
+pathlib study:
+Path()
+/ 拼接路径                            
+exists()                             
+is_file()                            
+is_dir()                             
+mkdir()                              
+iterdir()                            
+rglob() or glob()                            
+name                                 
+stem                                 
+suffix                               
+parent                               
+read_text()                          
+write_text()

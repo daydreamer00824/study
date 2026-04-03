@@ -1,0 +1,12 @@
+ArgumentParser
+add_argument
+required=True
+default=
+type=
+help=
+choices=
+parse_args
+通过 args.xxx 取值
+
+核心三步骤：创建解析器 → 添加参数 → 解析并使用。
+学会使用 -h 查看自动生成的帮助，这本身就是对 argparse 正确性的一次测试。

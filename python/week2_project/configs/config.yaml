@@ -1,0 +1,8 @@
+extensions:
+  - .jpg
+  - .png
+  - .jpeg
+
+target_size:
+  - 224
+  - 224

@@ -1,0 +1,7 @@
+yaml.safe_load
+配置文件的缩进规则
+列表写法
+字典写法
+布尔值 true/false
+yaml 对缩进敏感。
+缩进错了，会报错
