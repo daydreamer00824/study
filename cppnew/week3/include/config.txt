@@ -1,0 +1,2 @@
+/home/daydreamer/Desktop/study/cppnew/week3/input
+/home/daydreamer/Desktop/study/cppnew/week3/output
