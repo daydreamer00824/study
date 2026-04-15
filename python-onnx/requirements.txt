@@ -1,0 +1,7 @@
+torch
+torchvision
+onnx
+onnxruntime
+numpy
+opencv-python
+python的path传入别的地方要记得转成string
