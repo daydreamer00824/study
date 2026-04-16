@@ -1,0 +1,29 @@
+argparse：从命令行输入参数
+创造对象parse = argparse.ArgumentParser（）
+添加参数：parse.add_argument()
+解析：arg = parse.parse_args
+
+路径Path：
+.mkdir():只生成目录，不生成文件
+.exist（）
+.is_dir(), .is_file()
+.iterdir(), .glob("*.png"), .rglob()
+.name, .stem, .suffix, .parent
+.read_txt(), .write_txt()
+
+日志logging:
+logging.basicConfig(
+level=
+format=
+handkers=[]    (logging.FileHandler(),##文件，   logging.StreamHandler（），  ##控制台
+)
+
+读取配置文件：yaml   ###有字典写法和列表写法，要注意空格，冒号后必须加空格，格式与python一样也是缩进
+config = yaml.save_load()
+
+
+input文件里有更详细的写法与用法总结
+本周主要是学会python的最小最基础的工程化写法
+
+
+
