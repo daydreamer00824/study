@@ -1,0 +1,18 @@
+opencv用法
+import cv2
+
+注意：随时查看shape
+一般预处理步骤：读取图片所在目录，遍历读取图片，对每个图片做同样操作：
+读取图片，尺寸变换，（保存预览图），bgr转rgb，归一化，HWC转CHW，增加batch维度
+
+.imread   ###注意读取的必须是文件路径(转换成字符串)，读取格式是Numpy数组
+.resize（）
+opencv读取图片是BGR形式，一般模型读取是RGB形式
+cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+.imwrite()  ###保存图片，一般处理的时候会转换成rgb形式，建议转换为bgr再保存
+.astype(np.float32) / 255.0
+np.transpose()
+np.expand_dims  ##如果单张图处理完（1，3，224，224） 最后用   +  np.concatenate()  = （N,3,224,224)
+如果处理过程不用expand_dims（）增加维度的话 ##（3，224，224）最后用 + np.stack()   ####多张图 =（N,3,224,224）
+
+完成了工程化的最小图像预处理步骤
