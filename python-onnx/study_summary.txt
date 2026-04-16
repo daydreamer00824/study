@@ -1,0 +1,17 @@
+模型导出：切换到推理模式，然后输入数据（预输入，输入名字，输出名字）(use:torch.onnx.export)
+
+检查：onnx.checker.check_model或者在导出时可以设置参数verify
+
+查看输入输出格式：get_inputs（)和get_outputs()，返回的是列表，列表里面的对象内容包括name，shape，type     (use:onnxruntime.InferenceSession)
+
+图像前处理：要与模型导出时设置的预输入格式一样，不然模型导出时需要设置动态尺寸dynamic_shapes
+（用 torch.export.Dim("batch") 创建动态 batch 维，再通过 dynamic_shapes 指定输入的第 0 维为这个动态维。
+	batch_dim = torch.export.Dim("batch")
+	dynamic_shapes={"input": {0: batch_dim}}
+）
+
+模型推理执行：session.run([output],{input : img})，其中输入是字典，输出是列表，返回值也是一个列表
+
+最后模型的推理结果不是最终结果，是原始结果，需要自己解析（如分类模型给出的结果是分数，需要自己解析）
+
+本次只是单张图片的最小推理部署，后面需要扩展多批量，动态尺度.......
