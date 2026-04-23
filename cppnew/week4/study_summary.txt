@@ -1,0 +1,24 @@
+int argc, char *argv[]:相当于python中的argparse，从命令行接受参数
+
+c++opencv版：
+#include<opencv2/opencv.hpp>
+
+cv2::Mat
+cv::imread
+cv::imwrite
+cv::resize
+cv::cvtColor
+.convertTo(img, CV_32F, 1.0 / 255.0)
+
+CMakeLists.txt：cmake -S. -B build, cmake --build build
+
+cmake_minimum_required(VERSION )
+project()
+set()
+find_package(OpenCV REQUIRED)
+
+add_executable()
+
+target_include_directories()
+
+target_link_libraries(main PRIVATE ${OpenCV_LIBS})

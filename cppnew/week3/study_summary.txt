@@ -1,0 +1,31 @@
+头文件，源文件
+头文件声明：#pragma once
+头文件放声明，源文件放具体方法
+
+
+std::string filename = "image_01.jpg";
+if (filename.find(".jpg") != std::string::npos) {
+    std::cout << "是 jpg 文件" << std::endl;
+}
+这里最关键的是 find()。
+它的含义是：在字符串里找某个子串。
+找到了，就返回位置。
+找不到，就返回 std::string::npos。
+
+chrono，计时
+std::chrono::steady_clock
+std::chrono::system_clock
+std::chrono::duration_cast<>()
+.count()
+
+
+std::filesystem::path
+std::filesystem::exists()
+std::filesystem::is_directory()
+std::filesystem::directory_iterator()     .path
+std::filesystem::create_directories（）
+ifstream
+ofstream
+
+异常try{}catch{}
+
