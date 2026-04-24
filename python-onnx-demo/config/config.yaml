@@ -1,0 +1,12 @@
+base_path: /home/daydreamer/Desktop/study/python-onnx-demo/ 
+
+extensions:
+  - .jpg
+  - .png
+  - .jpeg
+
+size:
+  - 224
+  - 224
+
+batch_size: 12
