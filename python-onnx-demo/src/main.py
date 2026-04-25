@@ -10,6 +10,8 @@ import onnxruntime as ort
 import numpy as np
 from check_onnx import check_onnx
 from save_result_csv import save_result
+from postprocess import get_topk
+from label_map import load_labels, index_to_label, indices_to_labels
 
 def useparse():
     parse = argparse.ArgumentParser(description="Python ONNX Runtime 完整仓库")
@@ -28,13 +30,15 @@ def load_conig(config_dir : Path):
         config_path = config_dir / config_name
         with open(config_path, "r", encoding="utf-8") as c:
             cfg = yaml.safe_load(c)
-            return cfg
+            if cfg is None:
+                raise ValueError(f"配置文件为空: {config_path}")
+            else:
+                return cfg
     except FileNotFoundError:
         raise FileNotFoundError(f"配置文件不存在{config_path}")
     except yaml.YAMLError as e:
         raise ValueError(f"配置文件错误{e}")
-    if cfg is None:
-        raise ValueError(f"配置文件为空: {config_path}")    #!
+        #!
 
 
 def main():
@@ -46,6 +50,13 @@ def main():
         logging.info(f"配置文件加载成功:{cfg}")
     except Exception as e:
         logging.error(f"配置文件加载失败:{e}")
+        return
+    
+    try:
+        label_path = Path(cfg["base_path"]) / Path("labels/imagenet_classes.txt")
+        labels = load_labels(label_path)
+    except Exception as e:
+        logging.error(f"类别文件加载失败: {e}")
         return
     
     model_dir = Path(cfg["base_path"]) / Path(arg.models)
@@ -104,17 +115,30 @@ def main():
             image_path_batch = image_path[start : end]
             input_batch = np.stack(image_batch, axis=0).astype(np.float32)
             result = session.run([output_name], {input_name : input_batch})[0]
-            pred = np.argmax(result, axis=1)
+            topk_indices, topk_scores = get_topk(result, k=5)
+            # print("topk_indices shape:", topk_indices.shape)
+            # print("topk_scores shape:", topk_scores.shape)
+            pred = topk_indices[:, 0]
             autual_end = min(end, len(image))
             logging.info(f"当前批次: {start + 1} 到 {autual_end}")
             logging.info(f"推理成功, output shape: {result.shape}")
-            for p, cls_id in zip(image_path_batch, pred):
-                print(f"{p.name} -> top1 index:{int(cls_id)}")
-                logging.info(f"{p.name} -> top1 index:{int(cls_id)}")
+            for p, i, s in zip(image_path_batch, topk_indices, topk_scores):
+                top1_index = int(i[0])
+                top1_label = index_to_label(top1_index, labels)
+                top1_score = float(s[0])
+                top5_labels = indices_to_labels(i, labels)
+                # print("top_indices shape:", i.shape)
+                # print("top_scores shape:", s.shape)
+                logging.info(f"{p.name} -> top1 index:{top1_index}, label:{top1_label}, score:{top1_score:.4f}")
                 all_result.append({
                     "image_name" : p.name,
                     "image_path" : str(p),
-                    "top1_index" : int(cls_id)
+                    "top1_index" : top1_index,
+                    "top1_label" : top1_label,
+                    "top1_score" : round(top1_score, 6),
+                    "top5_indices" : ",".join(str(int(x)) for x in i),
+                    "top5_labels" : ",".join(top5_labels),
+                    "top5_scores" : ",".join(f"{float(y):.6f}" for y in s)
                 })
         try:
             result_path = save_result(all_result, output_path)
