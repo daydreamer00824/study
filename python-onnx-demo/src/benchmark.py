@@ -9,6 +9,7 @@ def save_benchmark(benchmark_result, output_dir:Path):
     benchmark_path = output_dir / "benchmark_results.csv"
 
     benchmark_name = [
+        "provider",
         "batch_size",
         "repeat_id",
         "image_count",
@@ -17,7 +18,7 @@ def save_benchmark(benchmark_result, output_dir:Path):
         "postprocess_time",
         "save_result_time",
         "avg_infer_ms",
-        "throughput"
+        "throughput",
     ]
 
     file_exist = benchmark_path.exists()
@@ -41,6 +42,7 @@ def save_benchmark_summary(summary_resluts, output_dir:Path):
     result_path = output_dir / "benchmark_summary.csv"
 
     fieldnames = [
+        "provider",
         "batch_size",
         "repeat_count",
         "image_count",
@@ -48,7 +50,7 @@ def save_benchmark_summary(summary_resluts, output_dir:Path):
         "avg_infer_ms_std",
         "throughput_mean",
         "throughput_std",
-        "best_by_throughput"
+        "best_by_throughput",
     ]
 
     with open(result_path, "w", newline="", encoding="utf-8") as f:

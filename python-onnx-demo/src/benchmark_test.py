@@ -27,6 +27,19 @@ def use_argparse():
         default=3,
         help="每个 batch_size 重复测试次数"
     )
+    parse.add_argument(
+        "--warmup",
+        type=int,
+        default=3,
+        help="每个 batch_size 重正式测试前的预热次数"
+    )
+    parse.add_argument(
+        "--provider",
+        type=str,
+        default="CPUExecutionProvider",
+        choices=["CPUExecutionProvider", "CUDAExecutionProvider"],
+        help="ONNX Runtime Execution Provider，例如 CPUExecutionProvider 或 CUDAExecutionProvider"
+    )
     return parse.parse_args()
 
 def load_config(config_dir:Path):
@@ -62,7 +75,7 @@ def set_logging(log_dir : Path):
                   logging.StreamHandler()]
     )
 
-def run_one_benchmark(session, input_name, output_name, image, batch_size: int):
+def run_one_benchmark(session, input_name, output_name, image, batch_size: int, provider):
     timer = Timerecorder()
 
 
@@ -86,6 +99,7 @@ def run_one_benchmark(session, input_name, output_name, image, batch_size: int):
     throughput = image_count / infer_time
 
     benchmark_result = {
+        "provider":provider,
         "batch_size": batch_size,
         "image_count": image_count,
         "preprocess_time": 0.0,
@@ -93,11 +107,33 @@ def run_one_benchmark(session, input_name, output_name, image, batch_size: int):
         "postprocess_time": round(postprocess_time, 6),
         "save_result_time": 0.0,
         "avg_infer_ms": round(avg_infer_ms, 3),
-        "throughput": round(throughput, 3)
+        "throughput": round(throughput, 3),
     }
 
     return benchmark_result
 
+def run_warmup(session, input_name, output_name, image, batch_size, warmup):
+    if warmup <= 0:
+        return
+    
+    for warmup_id in range(1, warmup +1 ):
+        for start in range(0, len(image), batch_size):
+            end = start + batch_size
+            image_batch = image[start : end]
+            input_batch = np.stack(image_batch, axis=0).astype(np.float32)
+
+            session.run([output_name], {input_name:input_batch})
+        
+        logging.info(f"warmup 完成: batch_size={batch_size}, warmup_id={warmup_id}/{warmup}")
+
+def check_provider(provider):
+    available_providers = ort.get_available_providers()
+    logging.info(f"当前环境可用 Provider: {available_providers}")
+
+    if provider not in available_providers:
+        raise RuntimeError(f"指定的 provider 不可用: {provider}, 当前可用: {available_providers}")
+            
+        
 
 def main():
     arg = use_argparse()
@@ -158,7 +194,11 @@ def main():
         return#!
     
     try:
-        session = ort.InferenceSession(str(model_path))
+        check_provider(arg.provider)
+        session = ort.InferenceSession(str(model_path), providers=[arg.provider])
+        actual_provider = session.get_providers()
+        logging.info(f"Session 实际使用 Provider: {actual_provider}")
+
         output_name = session.get_outputs()[0].name
         input_name = session.get_inputs()[0].name
     except Exception as e:
@@ -183,6 +223,22 @@ def main():
         avg_infer_ms_list = []
         throughput_list = []
 
+        try:
+            logging.info(f"开始 warmup: batch_size={batch_size}, warmup={arg.warmup}")
+
+            run_warmup(
+                session=session,
+                input_name=input_name,
+                output_name=output_name,
+                image=image,
+                batch_size=batch_size,
+                warmup=arg.warmup
+            )
+
+        except Exception as e:
+            logging.error(f"batch_size={batch_size} warmup 失败: {e}")
+            continue
+
         for repeat_id in range(1, arg.repeat + 1):
             try:
                 logging.info(f"开始测试 batch_size={batch_size}, repeat={repeat_id}/{arg.repeat}")
@@ -192,7 +248,8 @@ def main():
                     input_name=input_name,
                     output_name=output_name,
                     image=image,
-                    batch_size=batch_size
+                    batch_size=batch_size,
+                    provider=arg.provider
                 )
 
                 benchmark_result["repeat_id"] = repeat_id
@@ -225,6 +282,7 @@ def main():
             throughput_std = float(np.std(throughput_list))
 
             summary_reslut = {
+                "provider":arg.provider,
                 "batch_size":batch_size,
                 "repeat_count":len(avg_infer_ms_list),
                 "image_count":len(image),
