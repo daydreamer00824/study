@@ -145,7 +145,7 @@ void append_benchmark_csv(
 
     if (need_header) {
         ofs << "backend,"
-            << "batch_ofstreamsize,"
+            << "batch_size,"
             << "warmup,"
             << "repeat,"
             << "num_images,"
