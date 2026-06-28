@@ -1,4 +1,4 @@
-base_path: /home/daydreamer/Desktop/study/python-onnx-demo/ 
+base_path: . 
 
 extensions:
   - .jpg

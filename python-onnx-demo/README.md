@@ -1,65 +1,65 @@
-# Python ONNX Runtime 图像分类部署 Demo
+# ONNX Runtime 图像分类部署与性能测试
 
-本项目是一个基于 **Python + ONNX Runtime** 的图像分类部署示例，用于完成从 PyTorch 模型导出、ONNX 模型检查、图像预处理、批量推理、TopK 后处理、结果保存、性能 benchmark 到结果可视化的完整部署流程。
+本项目是一个基于 **PyTorch ResNet18 + ONNX Runtime** 的图像分类部署示例，覆盖模型导出、ONNX 模型检查、PyTorch / ONNX Runtime 输出一致性验证、批量推理、CPU / GPU 性能测试与结果可视化。
 
-项目目标不是只让代码跑通，而是形成一个可复现、可分析、可展示的视觉 AI 部署工程小项目。项目覆盖模型导出、ONNX Runtime 推理、结果保存、性能测试与可视化分析，可作为后续 C++ 推理链路和边缘设备部署验证的基础。
+项目重点不在模型训练，而在部署流程验证：将 PyTorch 视觉模型导出为 ONNX，检查模型结构，验证导出前后输出一致性，并在不同 ONNX Runtime Execution Provider 下进行推理性能 benchmark。
 
----
+## 项目亮点
 
-## 1. 项目功能
+- 使用 `torchvision.models.resnet18` 导出 ONNX 模型，并支持动态 batch
+- 检查 ONNX 模型合法性，查看输入 / 输出名称、shape 和数据类型
+- 基于同一张输入图像验证 PyTorch 与 ONNX Runtime 输出一致性
+- 使用 OpenCV 完成图像预处理：resize、BGR 转 RGB、ImageNet 归一化、HWC 转 CHW、NCHW batch 构造
+- 支持 ONNX Runtime 批量推理，并可通过参数切换 Execution Provider
+- 支持 Softmax + TopK 后处理，并将分类结果保存为 CSV
+- 支持不同 batch size 下的 warmup、repeat 和 benchmark 测试
+- 在同一 benchmark 脚本下对比 `CPUExecutionProvider` 与 `CUDAExecutionProvider`
+- 保存 benchmark 明细结果与汇总统计结果
+- 支持绘制吞吐量曲线和平均推理耗时曲线
 
-当前已实现：
+## 当前进度
 
-- PyTorch ResNet18 模型导出为 ONNX
-- ONNX 模型合法性检查
-- ONNX 模型输入输出结构查看
-- OpenCV 图像读取、resize、BGR 转 RGB
-- ImageNet 标准归一化
-- NCHW 输入格式转换
-- ONNX Runtime 批量推理
-- Softmax + TopK 分类后处理
-- ImageNet 类别映射
-- 推理结果保存为 CSV
-- 预处理、推理、后处理、结果保存耗时统计
-- 不同 batch_size 下的 benchmark 测试
-- benchmark warmup 预热
-- repeat 多次重复测试
-- mean / std 汇总统计
-- ONNX Runtime Execution Provider 参数化
-- benchmark 明细与汇总结果保存
-- 自动标记当前测试中吞吐量最高的 batch_size
-- benchmark 性能曲线可视化
+| 模块 | 状态 |
+|---|---|
+| PyTorch 到 ONNX 导出 | 已完成 |
+| ONNX 模型检查与输入输出信息查看 | 已完成 |
+| PyTorch / ONNX Runtime 一致性验证 | 已完成 |
+| ONNX Runtime Python 批量推理 | 已完成 |
+| ONNX Runtime CPU benchmark | 已完成 |
+| ONNX Runtime GPU benchmark | 已完成 |
+| C++ ONNX Runtime 推理 | 独立 C++ 模块中维护 |
+| TensorRT engine 构建 | 计划中 |
+| TensorRT FP16 推理 | 计划中 |
 
----
-
-## 2. 项目结构
+## 项目结构
 
 ```text
 python-onnx-demo/
 ├── config/
 │   └── config.yaml
 ├── input/
+│   └── *.jpg / *.png
 ├── labels/
 │   └── imagenet_classes.txt
 ├── logs/
-│   ├── run.log
-│   └── run_test.log
-├── models/
+├── model/
 │   └── model.onnx
-├── outputs/
+├── output/
 │   ├── prediction_results.csv
 │   ├── benchmark_results.csv
 │   ├── benchmark_summary.csv
+│   ├── verify_pytorch_onnx_cpu.json
+│   ├── verify_pytorch_onnx_cuda.json
 │   ├── benchmark_throughput.png
-│   ├── benchmark_avg_infer_ms.png
-│   └── images_resize/
+│   └── benchmark_avg_infer_ms.png
 ├── src/
-│   ├── main.py
-│   ├── benchmark_test.py
-│   ├── plot_benchmark.py
 │   ├── export_model.py
 │   ├── check_onnx.py
 │   ├── inspect_onnx.py
+│   ├── verify_pytorch_onnx.py
+│   ├── main.py
+│   ├── benchmark_test.py
+│   ├── plot_benchmark.py
 │   ├── image_process.py
 │   ├── postprocess.py
 │   ├── label_map.py
@@ -72,39 +72,61 @@ python-onnx-demo/
 └── README.md
 ```
 
-> 注：实际目录结构以本地项目为准。如果脚本不在 `src/` 目录下，请根据实际位置调整运行命令。
+> 实际目录名称可以按本地项目调整，但运行命令中的路径需要与本地目录保持一致。
 
----
+## 测试环境
 
-## 3. 环境依赖
+| 项目 | 版本 / 硬件 |
+|---|---|
+| 系统 | WSL2 Ubuntu |
+| GPU | NVIDIA GeForce RTX 3060 12GB |
+| NVIDIA Driver | 566.14 |
+| CUDA Driver API | 12.7 |
+| Python | 3.10 |
+| ONNX Runtime | 1.23.2 |
+| 可用 ORT Providers | `TensorrtExecutionProvider`, `CUDAExecutionProvider`, `CPUExecutionProvider` |
 
-主要依赖：
+## 环境安装
 
-```text
-python
-torch
-torchvision
-onnx
-onnxruntime
-opencv-python
-numpy
-pyyaml
-pandas
-matplotlib
+创建 conda 环境：
+
+```bash
+conda create -n python-onnx python=3.10 -y
+conda activate python-onnx
 ```
 
-安装依赖：
+安装支持 CUDA 的 PyTorch。当前测试环境中，CUDA 12.6 wheel 可正常运行：
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+```
+
+安装项目依赖：
 
 ```bash
 pip install -r requirements.txt
 ```
 
-如果只进行 CPU 推理，安装 `onnxruntime` 即可。  
-如果后续需要 CUDA 推理，应根据 CUDA / cuDNN 版本安装匹配的 `onnxruntime-gpu`。
+检查 PyTorch CUDA：
 
----
+```bash
+python -c "import torch; print(torch.__version__); print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'None')"
+```
 
-## 4. 配置文件
+检查 ONNX Runtime Provider：
+
+```bash
+python -c "import onnxruntime as ort; print(ort.__version__); print(ort.get_available_providers())"
+```
+
+期望输出中至少包含：
+
+```text
+CUDAExecutionProvider
+CPUExecutionProvider
+```
+
+## 配置文件
 
 配置文件路径：
 
@@ -112,10 +134,10 @@ pip install -r requirements.txt
 config/config.yaml
 ```
 
-配置文件示例：
+示例配置：
 
 ```yaml
-base_path: /path/to/python-onnx-demo
+base_path: .
 extensions:
   - .jpg
   - .jpeg
@@ -126,447 +148,299 @@ size:
 batch_size: 12
 ```
 
-字段说明：
+`base_path: .` 表示项目根目录。建议在仓库根目录下运行所有命令，避免路径错误。
 
-| 字段 | 含义 |
-|---|---|
-| `base_path` | 项目根目录 |
-| `extensions` | 支持读取的图片后缀 |
-| `size` | 模型输入图片尺寸 |
-| `batch_size` | 主推理流程默认 batch_size |
+## 整体流程
 
-> 当前版本仍使用 `base_path` 指定项目根目录，后续可优化为自动识别项目路径，提高可迁移性。
+```text
+PyTorch ResNet18
+    ↓ 导出
+ONNX 模型
+    ↓ 检查 / 查看输入输出信息
+ONNX Runtime 模型验证
+    ↓ 同一张图片 + 同一套预处理
+PyTorch / ONNX Runtime 一致性验证
+    ↓
+ONNX Runtime 批量推理
+    ↓
+TopK 后处理与 CSV 保存
+    ↓
+CPU / GPU benchmark
+    ↓
+性能分析与可视化
+```
 
----
+## 模型导出
 
-## 5. 主推理流程
+导出 PyTorch ResNet18 为 ONNX：
 
-主程序入口为：
+```bash
+python src/export_model.py
+```
+
+导出的 ONNX 模型支持动态 batch：
+
+```text
+input : ['batch', 3, 224, 224]
+output: ['batch', 1000]
+```
+
+## ONNX 模型检查与输入输出查看
+
+检查 ONNX 模型是否合法：
+
+```bash
+python -c "from pathlib import Path; from src.check_onnx import check_onnx; check_onnx(Path('model/model.onnx'))"
+```
+
+查看 ONNX 输入输出信息：
+
+```bash
+python -c "from pathlib import Path; from src.inspect_onnx import inspect_onnx; inspect_onnx(Path('model/model.onnx'))"
+```
+
+期望信息：
+
+```text
+input name : input
+input shape: ['batch', 3, 224, 224]
+output name : output
+output shape: ['batch', 1000]
+```
+
+## PyTorch / ONNX Runtime 一致性验证
+
+该步骤用于验证导出的 ONNX 模型是否与原始 PyTorch 模型输出一致。验证方式为：使用同一张输入图片，经过同一套 OpenCV 预处理后，分别输入 PyTorch 原模型和 ONNX Runtime，并比较 logits 误差以及 TopK 结果。
+
+CPU 验证：
+
+```bash
+python src/verify_pytorch_onnx.py \
+  --onnx model/model.onnx \
+  --image input/0013035.jpg \
+  --output output/verify_pytorch_onnx_cpu.json \
+  --device cpu \
+  --provider CPUExecutionProvider
+```
+
+GPU 验证：
+
+```bash
+python src/verify_pytorch_onnx.py \
+  --onnx model/model.onnx \
+  --image input/0013035.jpg \
+  --output output/verify_pytorch_onnx_cuda.json \
+  --device cuda \
+  --provider CUDAExecutionProvider
+```
+
+CPU 验证结果：
+
+| 指标 | 结果 |
+|---|---:|
+| max_abs_error | 0.00001152 |
+| mean_abs_error | 0.00000216 |
+| PyTorch Top5 | `[310, 309, 308, 316, 321]` |
+| ONNX Runtime Top5 | `[310, 309, 308, 316, 321]` |
+| Top1 same | True |
+| Top5 same | True |
+| Result | PASS |
+
+GPU 验证结果：
+
+| 指标 | 结果 |
+|---|---:|
+| max_abs_error | 0.00744581 |
+| mean_abs_error | 0.00118966 |
+| PyTorch Top5 | `[310, 309, 308, 316, 321]` |
+| ONNX Runtime Top5 | `[310, 309, 308, 316, 321]` |
+| Top1 same | True |
+| Top5 same | True |
+
+GPU 验证中，logits 层面的数值误差大于 CPU 验证，但 Top1 和 Top5 结果保持一致。该现象通常与 PyTorch CUDA 和 ONNX Runtime CUDA 后端使用的 GPU kernel、精度策略等差异有关。本项目将其记录为 GPU 后端输出存在小幅数值差异，但分类结果一致。
+
+## 批量推理
+
+运行 ONNX Runtime 批量推理：
 
 ```bash
 python src/main.py \
   --input input \
-  --output outputs \
-  --models models \
+  --output output \
+  --models model \
   --config config \
   --log logs
 ```
 
-如果脚本位于项目根目录，则使用：
-
-```bash
-python main.py \
-  --input input \
-  --output outputs \
-  --models models \
-  --config config \
-  --log logs
-```
-
-主流程包括：
-
-1. 读取配置文件
-2. 加载 ImageNet 类别文件
-3. 检查 ONNX 模型是否存在，不存在则自动导出
-4. 检查 ONNX 文件合法性
-5. 查看 ONNX 输入输出信息
-6. 收集并预处理输入图片
-7. 使用 ONNX Runtime 按 batch 推理
-8. 对模型输出做 Softmax + TopK 后处理
-9. 保存预测结果到 CSV
-10. 统计预处理、推理、后处理和结果保存耗时
-
-完整链路：
+预测结果保存到：
 
 ```text
-配置加载
-↓
-类别加载
-↓
-模型导出 / 复用
-↓
-ONNX 检查
-↓
-输入输出结构查看
-↓
-图片预处理
-↓
-ONNX Runtime batch 推理
-↓
-TopK 后处理
-↓
-CSV 结果保存
-↓
-耗时统计
-```
-
----
-
-## 6. 推理结果保存
-
-推理结果保存到：
-
-```text
-outputs/prediction_results.csv
+output/prediction_results.csv
 ```
 
 主要字段：
 
 | 字段 | 含义 |
 |---|---|
-| `image_name` | 图片文件名 |
-| `image_path` | 图片路径 |
-| `top1_index` | Top1 类别索引 |
-| `top1_label` | Top1 类别名称 |
-| `top1_score` | Top1 置信度 |
-| `top5_indices` | Top5 类别索引 |
-| `top5_labels` | Top5 类别名称 |
-| `top5_scores` | Top5 置信度 |
+| image_name | 输入图片文件名 |
+| image_path | 输入图片路径 |
+| top1_index | Top1 类别索引 |
+| top1_label | Top1 类别名称 |
+| top1_score | Top1 置信度 |
+| top5_indices | Top5 类别索引 |
+| top5_labels | Top5 类别名称 |
+| top5_scores | Top5 置信度 |
 
-该文件用于记录每张图片的分类结果，便于检查模型输出是否合理，也可以作为项目运行证据。
+## Benchmark
 
----
+`benchmark_test.py` 支持不同 batch size、warmup、repeat 以及可配置的 ONNX Runtime Execution Provider。
 
-## 7. Benchmark：batch_size 对推理性能的影响
-
-本项目提供 `benchmark_test.py`，用于测试不同 `batch_size` 对 ONNX Runtime 推理性能的影响。
-
-当前 benchmark 支持：
-
-- 指定 batch_size 列表
-- 指定 repeat 重复测试次数
-- 指定 warmup 预热次数
-- 指定 ONNX Runtime Execution Provider
-- 保存每次测试明细
-- 保存按 batch_size 汇总后的 mean / std 结果
-- 自动标记吞吐量最高的 batch_size
-
-### 7.1 运行命令
-
-如果脚本位于 `src/` 目录：
+CPU benchmark：
 
 ```bash
 python src/benchmark_test.py \
   --input input \
-  --output outputs \
-  --models models \
+  --output output_cpu \
+  --models model \
   --config config \
   --log logs \
+  --provider CPUExecutionProvider \
   --batch_size 1 4 8 12 16 32 \
-  --repeat 10 \
-  --warmup 3 \
-  --provider CPUExecutionProvider
+  --warmup 5 \
+  --repeat 10
 ```
 
-如果脚本位于项目根目录：
+GPU benchmark：
 
 ```bash
-python benchmark_test.py \
+python src/benchmark_test.py \
   --input input \
-  --output outputs \
-  --models models \
+  --output output_gpu \
+  --models model \
   --config config \
   --log logs \
+  --provider CUDAExecutionProvider \
   --batch_size 1 4 8 12 16 32 \
-  --repeat 10 \
-  --warmup 3 \
-  --provider CPUExecutionProvider
+  --warmup 5 \
+  --repeat 10
 ```
 
-### 7.2 参数说明
-
-| 参数 | 含义 |
-|---|---|
-| `--batch_size` | 要测试的 batch_size 列表 |
-| `--repeat` | 每个 batch_size 重复测试次数 |
-| `--warmup` | 正式计时前的预热轮数 |
-| `--provider` | ONNX Runtime Execution Provider |
-
-当前测试环境可用 Provider：
-
-```text
-AzureExecutionProvider
-CPUExecutionProvider
-```
-
-当前环境暂未检测到 `CUDAExecutionProvider`，因此本阶段只进行 `CPUExecutionProvider` benchmark。
-
----
-
-## 8. Benchmark 输出文件
-
-Benchmark 会生成两个 CSV 文件：
-
-| 文件 | 作用 |
-|---|---|
-| `outputs/benchmark_results.csv` | 保存每一次 repeat 的明细结果 |
-| `outputs/benchmark_summary.csv` | 保存每个 batch_size 的汇总统计结果 |
-
-`benchmark_results.csv` 主要字段：
-
-| 字段 | 含义 |
-|---|---|
-| `provider` | ONNX Runtime Execution Provider |
-| `batch_size` | 当前测试的 batch_size |
-| `repeat_id` | 当前第几次重复测试 |
-| `image_count` | 图片数量 |
-| `preprocess_time` | 预处理耗时 |
-| `infer_time` | ONNX 推理总耗时 |
-| `postprocess_time` | 后处理耗时 |
-| `save_result_time` | 结果保存耗时 |
-| `avg_infer_ms` | 平均单图推理耗时 |
-| `throughput` | 吞吐量 |
-
-`benchmark_summary.csv` 主要字段：
-
-| 字段 | 含义 |
-|---|---|
-| `provider` | ONNX Runtime Execution Provider |
-| `batch_size` | 当前测试的 batch_size |
-| `repeat_count` | 有效重复测试次数 |
-| `image_count` | 图片数量 |
-| `avg_infer_ms_mean` | 平均单图推理耗时均值 |
-| `avg_infer_ms_std` | 平均单图推理耗时标准差 |
-| `throughput_mean` | 吞吐量均值 |
-| `throughput_std` | 吞吐量标准差 |
-| `best_by_throughput` | 是否为当前测试中吞吐量最高的 batch_size |
-
----
-
-## 9. Benchmark 可视化
-
-`plot_benchmark.py` 用于读取 `benchmark_summary.csv`，并绘制性能曲线图。
-
-运行命令：
-
-```bash
-python src/plot_benchmark.py \
-  --summary outputs/benchmark_summary.csv \
-  --output outputs
-```
-
-如果脚本位于项目根目录：
-
-```bash
-python plot_benchmark.py \
-  --summary outputs/benchmark_summary.csv \
-  --output outputs
-```
-
-输出图片：
+输出文件：
 
 | 文件 | 含义 |
 |---|---|
-| `outputs/benchmark_throughput.png` | batch_size 与吞吐量关系图 |
-| `outputs/benchmark_avg_infer_ms.png` | batch_size 与平均单图推理耗时关系图 |
+| `benchmark_results.csv` | 每次 repeat 的 benchmark 明细结果 |
+| `benchmark_summary.csv` | 每个 batch size 的 mean / std 汇总结果 |
 
-图中误差线表示多次 repeat 的标准差，用于观察性能波动情况。
+Benchmark 指标：
 
-### Throughput 曲线
+| 指标 | 含义 |
+|---|---|
+| `avg_infer_ms_mean` | 平均单图推理耗时，单位 ms/image |
+| `avg_infer_ms_std` | 平均单图推理耗时标准差 |
+| `throughput_mean` | 平均吞吐量，单位 image/s |
+| `throughput_std` | 吞吐量标准差 |
+| `best_by_throughput` | 当前 batch size 是否为吞吐量最优 |
 
-![Batch Size vs Throughput](outputs/benchmark_throughput.png)
+> 当前 benchmark 统计的是预处理后的 tensor 输入 ONNX Runtime 后的模型推理耗时，不包含图片读取、预处理和完整端到端耗时。
 
-### Average Inference Time 曲线
-
-![Batch Size vs Avg Inference Time](outputs/benchmark_avg_infer_ms.png)
-
----
-
-## 10. 最新 Benchmark 结果
+## Benchmark 结果
 
 测试设置：
 
 | 项目 | 设置 |
 |---|---|
 | 模型 | ResNet18 ONNX |
-| 推理框架 | ONNX Runtime |
-| Provider | CPUExecutionProvider |
 | 输入尺寸 | 224 × 224 |
 | 图片数量 | 244 |
-| batch_size | 1 / 4 / 8 / 12 / 16 / 32 |
-| repeat | 10 |
-| warmup | 3 |
+| Batch size | 1 / 4 / 8 / 12 / 16 / 32 |
+| Warmup | 5 |
+| Repeat | 10 |
+| 统计指标 | 平均推理耗时与吞吐量 |
 
-> 精确数值以 `outputs/benchmark_summary.csv` 为准。当前 README 的结果分析基于 repeat=10 后生成的可视化图和汇总结果。
+### CPUExecutionProvider
 
----
+| Batch Size | 平均推理耗时 ms/image | 吞吐量 image/s | 是否最优 |
+|---:|---:|---:|---|
+| 1 | 5.507 | 182.018 | 是 |
+| 4 | 5.717 | 175.689 | 否 |
+| 8 | 5.599 | 178.771 | 否 |
+| 12 | 5.640 | 177.414 | 否 |
+| 16 | 5.573 | 179.679 | 否 |
+| 32 | 5.985 | 167.664 | 否 |
 
-## 11. 指标说明
+### CUDAExecutionProvider
 
-### 11.1 avg_infer_ms
+| Batch Size | 平均推理耗时 ms/image | 吞吐量 image/s | 是否最优 |
+|---:|---:|---:|---|
+| 1 | 1.437 | 695.959 | 否 |
+| 4 | 0.859 | 1163.777 | 否 |
+| 8 | 0.826 | 1210.189 | 否 |
+| 12 | 0.829 | 1206.619 | 否 |
+| 16 | 0.771 | 1297.303 | 否 |
+| 32 | 0.692 | 1445.357 | 是 |
 
-`avg_infer_ms` 表示平均每张图片的 ONNX 推理耗时，单位是 `ms/image`。
+### CPU / GPU 对比
 
-计算方式：
+| Backend | 最优 Batch Size | 平均推理耗时 ms/image | 吞吐量 image/s |
+|---|---:|---:|---:|
+| ONNX Runtime CPU | 1 | 5.507 | 182.018 |
+| ONNX Runtime GPU | 32 | 0.692 | 1445.357 |
+
+在同一 benchmark 脚本与同一图片集下，GPU 最优吞吐约为：
 
 ```text
-avg_infer_ms = infer_time / image_count × 1000
+1445.357 / 182.018 ≈ 7.94×
 ```
 
-其中：
+该结果表明，在 RTX 3060 上，`CUDAExecutionProvider` 在批量 ResNet18 推理任务中相比 `CPUExecutionProvider` 具有明显吞吐优势。
 
-| 变量 | 含义 |
+## 可视化
+
+生成 benchmark 曲线：
+
+```bash
+python src/plot_benchmark.py \
+  --summary output_gpu/benchmark_summary.csv \
+  --output output_gpu
+```
+
+预期输出：
+
+| 文件 | 含义 |
 |---|---|
-| `infer_time` | 所有图片的 ONNX 推理总耗时，单位为秒 |
-| `image_count` | 图片数量 |
-| `1000` | 秒转换为毫秒 |
+| `benchmark_throughput.png` | batch size 与吞吐量关系曲线 |
+| `benchmark_avg_infer_ms.png` | batch size 与平均推理耗时关系曲线 |
 
-### 11.2 throughput
+## Batch Size 说明
 
-`throughput` 表示单位时间内可以处理多少张图片，单位是 `image/s`。
+CPU benchmark 中，增大 batch size 没有提升吞吐量，最优吞吐出现在 batch size = 1。
 
-计算方式：
+GPU benchmark 中，随着 batch size 增大，吞吐量整体提升，最优吞吐出现在 batch size = 32。这说明在当前模型和输入尺寸下，较大的 batch size 能更充分利用 GPU 并行计算能力。
 
-```text
-throughput = image_count / infer_time
-```
+最优 batch size 与硬件、模型结构、输入尺寸、Provider 和部署场景有关，不能直接假设，需要在目标环境下实际测试。
 
-其中：
+## 当前限制
 
-| 变量 | 含义 |
-|---|---|
-| `image_count` | 图片数量 |
-| `infer_time` | 所有图片的 ONNX 推理总耗时，单位为秒 |
+- 当前模型为 ResNet18 图像分类模型，暂未覆盖检测、分割等模型。
+- 当前 benchmark 主要统计预处理后的模型推理耗时，不是完整端到端耗时。
+- GPU 验证中 Top1 / Top5 一致，但 PyTorch CUDA 与 ONNX Runtime CUDA 的 logits 数值并非逐元素严格一致。
+- TensorRT FP32 / FP16 engine 构建和 TensorRT 推理 benchmark 尚未纳入当前 README。
+- C++ ONNX Runtime 推理目前作为独立模块维护，后续如合并到本仓库，需要单独补充文档。
 
-### 11.3 mean 与 std
+## Roadmap
 
-benchmark 中对每个 batch_size 重复测试多次：
+- [x] PyTorch ResNet18 导出 ONNX
+- [x] ONNX 模型检查与输入输出信息查看
+- [x] PyTorch / ONNX Runtime 一致性验证
+- [x] ONNX Runtime Python 批量推理
+- [x] CPUExecutionProvider benchmark
+- [x] CUDAExecutionProvider benchmark
+- [x] CPU / GPU benchmark 对比
+- [ ] TensorRT FP32 engine 构建
+- [ ] TensorRT FP16 engine 构建
+- [ ] TensorRT 推理 benchmark
+- [ ] ONNX Runtime 与 TensorRT 性能对比
+- [ ] 增加包含预处理的端到端延迟统计
+- [ ] 整合 C++ ONNX Runtime 文档
 
-- `mean` 表示多次测试的平均性能
-- `std` 表示多次测试之间的波动程度
-
-这样可以避免只根据单次运行结果判断性能。
-
-### 11.4 warmup
-
-`warmup` 表示正式计时前先运行若干轮推理，但不把这些推理耗时计入最终 benchmark。
-
-加入 warmup 的目的是减少 ONNX Runtime 初始化、内存分配、缓存状态等因素对正式计时的影响，使 benchmark 更稳定。
-
-### 11.5 Provider
-
-ONNX Runtime 通过 Execution Provider 指定模型运行后端，例如：
-
-- `CPUExecutionProvider`：CPU 推理
-- `CUDAExecutionProvider`：NVIDIA GPU 推理
-
-当前项目在创建 Session 前会检查当前环境可用 Provider，并记录实际使用的 Provider，避免不清楚模型到底运行在哪个后端。
-
----
-
-## 12. 结果分析
-
-从当前 `CPUExecutionProvider` 测试结果看，batch_size 增大并没有稳定带来吞吐量提升。
-
-在当前环境下，`batch_size=1` 的吞吐量表现较好，平均单图推理耗时也较低。`batch_size=4` 和 `batch_size=12` 表现相对接近，而较大的 batch_size，如 `16` 和 `32`，吞吐量下降且波动更明显。
-
-这说明在当前 CPU 推理环境中，增大 batch_size 不一定能提升性能。相比 GPU，CPU 对大 batch 的并行收益可能有限，同时还可能受到缓存、内存带宽、线程调度和虚拟机环境波动等因素影响。
-
-因此，本项目没有简单认为 batch_size 越大越好，而是通过 warmup、repeat、mean、std 和可视化曲线综合判断性能表现。实际部署时应根据具体硬件、Provider、输入规模和业务延迟要求重新测试。
-
----
-
-## 13. 日志输出
-
-主推理日志默认保存到：
-
-```text
-logs/run.log
-```
-
-benchmark 日志默认保存到：
-
-```text
-logs/run_test.log
-```
-
-日志内容包括：
-
-- 配置文件是否加载成功
-- ONNX 模型是否存在或是否重新导出
-- ONNX 检查是否通过
-- 模型输入输出 shape
-- 图片数量
-- 当前环境可用 Provider
-- Session 实际使用 Provider
-- warmup 执行情况
-- 每个 batch_size 的 repeat 测试结果
-- benchmark 汇总结果
-
-日志用于定位运行问题，也可以作为项目运行证据。
-
----
-
-## 14. 当前项目阶段总结
-
-当前项目已经完成 Python ONNX Runtime 图像分类部署基础闭环：
-
-```text
-模型导出
-↓
-ONNX 检查
-↓
-图片预处理
-↓
-ONNX Runtime 推理
-↓
-TopK 后处理
-↓
-结果保存
-↓
-耗时统计
-↓
-batch_size benchmark
-↓
-warmup + repeat
-↓
-Provider 参数化
-↓
-性能结果汇总
-↓
-benchmark 可视化
-```
-
-当前项目可以用于展示以下能力：
-
-- 基础视觉部署链路搭建
-- ONNX 模型导出与检查
-- 图像预处理与模型输入格式转换
-- ONNX Runtime 批量推理
-- 分类结果后处理
-- CSV 结果保存
-- 推理性能统计
-- batch_size 性能测试与工程分析
-- warmup、repeat、mean、std 的 benchmark 方法
-- ONNX Runtime Provider 指定与记录
-- benchmark 可视化与结果分析
-
----
-
-## 15. 当前限制
-
-当前项目仍有以下限制：
-
-- 当前主要验证的是 ResNet18 图像分类模型
-- 当前测试环境只检测到 `CPUExecutionProvider`，暂未进行 `CUDAExecutionProvider` 对比
-- 当前运行环境存在虚拟机因素，benchmark 结果不代表所有物理机或边缘设备
-- 当前 benchmark 主要关注 ONNX 推理时间，端到端耗时分析还可以进一步增强
-- 当前路径配置仍依赖 `base_path`，项目可迁移性还有优化空间
-- 当前已做 ONNX 文件合法性检查，但暂未补充 PyTorch / ONNX 导出前后数值一致性验证；
-- 当前尚未完成 C++ 推理链路和真实边缘设备部署验证
-
-这些限制也是后续继续完善项目的方向。
-
----
-
-## 16. 后续计划
-
-后续可继续扩展：
-
-1. 优化路径配置，减少本地绝对路径依赖
-2. 增加主推理流程的 Provider 参数
-3. 在真实 NVIDIA 小主机或边缘设备上测试 `CUDAExecutionProvider`
-4. 补充 PyTorch / ONNX 导出前后数值一致性验证；
-5. 增加 C++ OpenCV + ONNX Runtime 推理链路
-6. 扩展到检测或分割模型部署
-7. 完善端到端耗时统计与部署分析
